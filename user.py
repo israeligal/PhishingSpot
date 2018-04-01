@@ -19,7 +19,7 @@ class User:
         else:
             logging.error("could not write to file")
 
-    def add_user_to_db(self, ps_database):
+    def add_user_to_db(self, db):
 
         user = DbUser()
 
@@ -38,8 +38,8 @@ class User:
             logging.error("user class, did not find password in form")
             return
         user_details.user = user
-        ps_database.session.add(user)
+        db.session.add(user)
         print( self.form['pass'][0])
         print(self.form['email'][0])
-        ps_database.session.add(user_details)
-        ps_database.session.commit()
+        db.session.add(user_details)
+        db.session.commit()
